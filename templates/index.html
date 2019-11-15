@@ -1,0 +1,748 @@
+	<!doctype html>
+
+<html lang="en">
+
+<head>
+    <title>Kondo Cmd</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+<link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css" />
+
+<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+<script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
+
+ <script type="text/javascript">
+ $(document).on("pagecreate","#pageFirst",function(){
+     var sock = null;
+     var ellog = null;
+
+     window.onload = function () {
+
+         ellog = document.getElementById('log');
+         var wsuri;
+         if (window.location.protocol === "file:") {
+			//lan üzerinde claisiyorsa  localhost a baglanilacak uri(websocket icin)
+             wsuri = "ws://127.0.0.1:8080/ws";
+         } else {
+             wsuri = "ws://" + window.location.hostname + ":8080/ws"; 
+         }
+		//browser destegini kontrol ediyor websocekt icin. 
+         if ("WebSocket" in window) {
+             sock = new WebSocket(wsuri);
+         } else if ("MozWebSocket" in window) {
+             sock = new MozWebSocket(wsuri);
+         } else {
+             console.log("Browser does not support WebSocket!");
+         }
+
+         if (sock) {
+			//socket ilk acildiginda bu baglandi ip i console yazdirio..
+             sock.onopen = function () {
+                 console.log("Connected to " + wsuri);
+             }
+			//kapandıgında
+             sock.onclose = function (e) {
+                 console.log("Connection closed (wasClean = " + e.wasClean + ", code = " + e.code + ", reason = '" + e.reason + "')");
+                 sock = null;
+             }
+			//sunucudan veri geldiği zaman.
+             sock.onmessage = function (e) {
+                 console.log("Got echo: " + e.data);
+             }
+         }
+     };
+
+     function log(m) {
+         ellog.innerHTML += m + '\n';
+         ellog.scrollTop = ellog.scrollHeight;
+     };
+            //event, calls myToggle()  
+
+
+
+
+     //$("#flipswitch_sync").change(myToggle);
+
+     //17 tane slider ın text box u güncellemesi
+
+ 
+     $(".changeEvent").change(function () {
+         //değişen sliderin bağlı olduğu textbox u değiştirmek icin slider ids bulunup '_' splitle ayriliyor.
+         // Eğer head motoruysa elimize 'head' geçiyor. Buna göre
+         //textbox u bulup slidera bağlı olan değerini değiştiriyoruz
+
+         var mySlider = $(this).find("input");
+         var degistirilecek_textbox = mySlider.attr("id").split("_")[1];
+         var servo_id = mySlider.attr("id").split("_")[2];
+         var frame = $(mySlider).val(); //deger bulunuyor
+         $("#text_" + degistirilecek_textbox + "_" + servo_id).val(frame);
+         if (myToggle() == "On") {
+             gonder(servo_id, frame);
+         }
+     });
+     $(".changeTextEvent").bind("change", function (event, ui) {
+		//motorlar yanındaki textbox degistiginde calian kod parcasi. eger sync on ise sunucuya id ve frame i gönderio.
+         var degistirilecek_slider = $(this).attr("id").split("_")[1];//text_head_0
+         var servo_id = $(this).attr("id").split("_")[2];//0
+        var frame = $(this).val();
+        $("#slider_" + degistirilecek_slider +"_" + servo_id).val(frame);//slider_head_0
+        $("#slider_" + degistirilecek_slider + "_" + servo_id).slider("refresh");//degisiklikten sonra görsel olarak sliderin degismesi icin refresh dnenmesi lazım.
+        if (myToggle() == "On") {
+            gonder(servo_id, frame);
+        }
+     function myToggle() {
+         var state = $("#flipswitch_sync").prop("checked") ? "On" : "Off";
+
+         return state
+     }
+     function gonder(servo_id, frame) {
+         if (sock) {
+             //sunucuya websocket üzerinden veri gönderiyoruz. servo_id ve frame gönderiyor. eger sock yoksa. sock FAlse eşit olacağı,
+			 //icin console bagli degil yazacak.
+             var servoIdAndFrame = {"servo_id": servo_id, "frame": frame }
+             //sock.send(ui.value);
+             sock.send(JSON.stringify(servoIdAndFrame))
+             console.log("Sent: " + servoIdAndFrame);
+         } 
+     }         
+     });
+     $(".pozisyonEkle").click(function () {
+         var pos_no = parseInt($(".sonEklenen").attr("id").split("_")[1]);
+         
+         $(".sonEklenen").removeClass("sonEklenen");
+         var yeniLabel = '<label for="pos_NO">Pos NO</label>' 
+         var yeniText  =  '<input class="sonEklenen" id="pos_NO" type="text"/>';
+         yeniLabel = yeniLabel.replace(/NO/g, pos_no + 1);
+         yeniText = yeniText.replace(/NO/g, pos_no + 1);
+         $(".pozisyonlar").append(yeniLabel);
+         $(".pozisyonlar").append(yeniText);
+         $(".sonEklenen").textinput();
+
+         var myNumber = 0b11111111;
+         var hexStr = myNumber.toString(16);
+         myNumber = parseInt(hexStr, 16);
+         console.log(hexStr);
+         
+         
+     });
+     $(".komutOlustur").click(function () {
+	
+	var servos = [0, 2, 3, 4, 5, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
+	var servo_count = servos.length;
+	var values = [
+		$("#text_head_0").val(),
+		$("#text_leftShoulderPitch_2").val(),
+		$("#text_rightShoulderPitch_3").val(),
+		$("#text_leftShoulderRoll_4").val(),
+		$("#text_rightShoulderRoll_5").val(),
+		$("#text_leftElbow_8").val(),
+		$("#text_rightElbow_9").val(),
+		$("#text_leftHipRoll_12").val(),
+		$("#text_rightHipRoll_13").val(),
+		$("#text_leftHipPitch_14").val(),
+		$("#text_rightHipPitch_15").val(),
+		$("#text_leftKnee_16").val(),
+		$("#text_rightKnee_17").val(),
+		$("#text_leftAnklePitch_18").val(),
+		$("#text_rightAnklePitch_19").val(),
+		$("#text_leftAnkleRoll_20").val(),
+		$("#text_rightAnkleRoll_21").val(),
+	]
+	/*
+         var servos = [0, 2, 3, 4, 5, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+         var servo_count = 17;
+         var frames = [7500, 7500, 7500, 7500, 7500, 7500, 7500, 7500, 7500, 7500, 7500, 7500, 7500,7500, 7500, 7500, 7500];
+*	*/
+         komutMaker(servos, servo_count,values);
+     });
+
+     function komutMaker(servos_used, servo_count, values) {
+         var servos = [0, 0, 0, 0, 0];
+
+         for (id_no in servos_used) {
+             
+             var divQuot = parseInt(servos_used[id_no] / 8);
+             var divRem = servos_used[id_no] % 8;
+             servos[4 - divQuot] += 1 << divRem;
+         }
+         var swap = [];
+         swap[1] = 0x10;
+         swap[2] = servos[4];
+         swap[3] = servos[3];
+         swap[4] = servos[2];
+         swap[5] = servos[1];
+         swap[6] = servos[0];
+         swap[7] = 0x1;
+         var i;
+         var value_index = 0;
+         for (i = 8; i < 8 + (servo_count * 2) ; i += 2) {
+             swap[i] = values[value_index]%256
+             swap[i + 1] = values[value_index] >> 8;
+             value_index++;
+         }
+         swap[0] = i + 1;
+         swap[i] = kondo_checksum(swap);
+	 var komut = "";
+         for (j = 0; j < swap.length; j++) {
+             var hexStr = swap[j].toString(16).toUpperCase();
+             komut += hexStr + " ";       
+             //console.log(hexStr);
+	     
+
+         }
+	 
+	 $(".komutTextBox").val(komut);
+     }
+
+     $(".hareketButton").click(function() {
+		var pos1 = $("#pos_1").val();
+		var pos2 = $("#pos_2").val();
+		var pos3 = $("#pos_3").val();
+		var pos4 = $("#pos_4").val();
+		console.log(pos1);
+		var hareketler = {"pos1": pos1, "pos2": pos2, "pos3":pos3, "pos4":pos4}
+		if (sock) {
+            		 sock.send(JSON.stringify(hareketler))
+            		 console.log("Sent: " + hareketler);
+         } else {
+             console.log("Not connected.");
+         }
+		
+	});
+     function kondo_checksum(swap) {
+         var i;
+         var sum = 0;
+         for (i = 0; i < swap.length; i++)
+             sum += swap[i];
+         return sum%256;
+     }
+  
+    //ayarlar
+    $("input[type='radio']").bind( "change", function(event, ui) {
+	//checkboxlardan birine tkıklandıgında tema degisiyor.r page first class(ilki div elementi) data-theme= kısmı degisiyor isteg gör(Body den sonraki ilk div)
+        var tema = $(this).attr("class").split("_")[1];
+         $("page_first").attr("data-theme",tema);
+       
+    });
+    $("#button_sliderMinMaxAyar").click(function () {
+	//slider ayari min max
+        var yeni_min = $(".text_sliderMin").val();
+        var yeni_max = $(".text_sliderMax").val();
+        $(".slider").prop({
+            min: yeni_min,
+            max: yeni_max,
+            
+        }).slider("refresh");
+    });
+
+    $(".yonlu_hareket").click(function () {
+		//üstteki 6 butondan birine tiklandiginda olan event.
+        var yonlu_hareket = $(this).attr('value');
+        console.log(yonlu_hareket);
+        KondoAction("hareket", yonlu_hareket);
+    });
+    $("#secilmis_hareket").click(function () {
+	//butona tiklandiginda dropdowndan secilmiş hareketi aliyor.
+        var secilen_hareket = $('select[name=selector]').val();
+        console.log(secilen_hareket);
+        KondoAction("hareket", secilen_hareket);
+
+    });
+
+    function KondoAction(komut, hareket_adi) {
+        //tanımlı hareketler icin calisiyor. ajax sayesinde sayfa yenilenmeden nsunucuya hangi hareket calisacagini söylüyor.(def hello_world)
+        data = {
+            "komut": komut,
+            "hareket_adi": hareket_adi
+        }
+        $.ajax({
+            type: 'POST',
+            url: '/',
+            data: JSON.stringify(data, null, '\t'),
+            contentType: 'application/json;charset=UTF-8',
+        })
+    }
+
+});
+
+
+
+
+
+</script>
+<style  type=text/css>
+    div.ui-input-text {
+       
+
+    }
+    div.ui-slider {
+		
+    }
+    div.deneme {
+    width: 75px !important
+    }
+    .buttonGorsel {
+        text-align:center;
+
+
+    }
+
+    .jsonOlarakSaklaButton {
+    font-size:100%;
+    font-family: sans-serif
+    width: 20px !important;
+
+
+    }
+
+    .ui-block-a, .ui-block-b, .ui-block-c{
+
+
+    }
+
+
+</style>
+</head>
+
+<body>
+    <div class="page_first" data-role="page" id="pageFirst" data-theme="b">
+            <div data-role="footer"> <br></div><!-- /footer -->
+            <div data-role="main" class="ui-content">
+                <!--------------------------------------------GORSEL---------------------------------------------------->
+                <div class="ui-grid-a ui-responsive">
+    
+                    <div class="ui-block-a">
+                        <div class="ui-grid-d ui-responsive">
+                            <div class="ui-block-a">
+                                <div class="ui-field-contain">
+                                    <label style="padding-right:20px;" for="textinput-1">Sync</label>
+                                    <input type="checkbox" id="flipswitch_sync" data-role="flipswitch">
+                                </div>
+                            </div>
+                            <div class="ui-block-b">
+                                <div class="ui-field-contain">
+                                    <label style="padding-right:20px;" for="textinput-1">Kamera</label>
+                                    <input type="checkbox" id="flipswitch_kamera" data-role="flipswitch">
+                                </div>
+                            </div>
+                            <div class="ui-block-c"></div>
+
+                         </div>
+                            <div data-role="collapsible">
+                                <h4>Tanımlı Hareketler</h4>
+                                <fieldset class="ui-grid-b">
+                                    <div class="ui-block-a"><a class="yonlu_hareket" id="bt_move_turnleft" href="#" data-role="button" data-icon="back" data-iconpos="top" value="Quickturn Left"></a>		</div>
+                                    <div class="ui-block-b"><a class="yonlu_hareket" id="bt_move_forward" href="#" data-role="button" data-icon="arrow-u" data-iconpos="top" value="Safewalk Forward"></a>		</div>
+                                    <div class="ui-block-c"><a class="yonlu_hareket" id="bt_move_turnright" href="#" data-role="button" data-icon="forward" data-iconpos="top" value="Quickturn Right"></a>		</div>
+
+
+                                    <div class="ui-block-a"><a class="yonlu_hareket" id="bt_move_left" href="#" data-role="button" data-icon="arrow-l" data-iconpos="top" value="Safewalk Left"></a>		</div>
+                                    <div class="ui-block-b"><a class="yonlu_hareket" id="bt_move_backward" href="#" data-role="button" data-icon="arrow-d" data-iconpos="top" value="Safewalk Backward"></a>		</div>
+                                    <div class="ui-block-c"><a class="yonlu_hareket" id="bt_move_right" href="#" data-role="button" data-icon="arrow-r" data-iconpos="top" value="Safewalk Right"></a>		</div>
+                                </fieldset>
+                                <fieldset class="ui-grid-b">
+                                    <div class="ui-block-a"></div>
+
+                                    <div class="ui-block-b">
+
+                                        <select id="hareketler" name="selector" data-native-menu="false" data-theme="b" data-form="ui-btn-up-a" tabindex="-1">
+
+                                            <option value="Greeting">Greeting</option>
+                                            <option value="Home Position">Home Position</option>
+                                            <option value="Wave">Wave</option>
+                                            <option value="HipHipHipHurray">HipHipHipHurray!</option>
+                                            <option value="Chagrined">Chagrined Drop</option>
+                                            <option value="Headstand">Headstand</option>
+                                            <option value="Clap">Clap</option>
+                                            <option value="10 Claps">10 Claps</option>
+                                            <option value="Rythm Claps">Rythm Claps</option>
+                                            <option value="Push-Ups">Push-Ups</option>
+                                            <option value="One Legged Bend">One Legged Bend</option>
+                                            <option value="Bunny Hop A">Bunny Hop A</option>
+                                            <option value="Bunny Hop B">Bunny Hop B</option>
+                                            <option value="Stand-up Stomach">Stand-up Stomach</option>
+                                            <option value="Stand-Up Back">Stand-Up Back</option>
+                                            <option value="Safewalk Forward">Safewalk Forward</option>
+                                            <option value="Safewalk Backward">Safewalk Backward</option>
+                                            <option value="Safewalk Left">Safewalk Left</option>
+                                            <option value="Safewalk Right">Safewalk Right</option>
+                                            <option value="Quickturn Left">Quickturn Left</option>
+                                            <option value="Quickturn Right">Quickturn Right</option>
+                                            <option value="Regular Walk forward">Regular Walk forward</option>
+                                            <option value="Regular Walk Back">Regular Walk Back</option>
+                                            <option value="Regular Walk Left">Regular Walk Left</option>
+                                            <option value="Regular Walk Right">Regular Walk Right</option>
+                                            <option value="Kick Ball Fwd Left">Kick Ball Fwd Left</option>
+                                            <option value="Kick Ball Fwd Right">Kick Ball Fwd Right</option>
+                                            <option value="Kick Ball Side Left">Kick Ball Side Left</option>
+                                            <option value="Kick Ball Side Right">Kick Ball Side Right</option>
+                                            <option value="Kick Ball Backwd Left">Kick Ball Backwd Left</option>
+                                            <option value="Kick Ball Backwd Right">Kick Ball Backwd Right</option>
+                                        </select>
+                                    </div>
+                                    <div class="ui-block-c"></div>
+                                    <div class="ui-block-a"></div>
+                                    <div class="ui-block-b">
+                                        <a id="secilmis_hareket" data-role="button" data-icon="action" data-iconpos="right">Başlat</a>
+                                    </div>
+                                </fieldset>
+                            </div>
+                            <div data-role="collapsible">
+                                <h4>Hareket Oluştur</h4>
+                                <div class="ui-grid-solo">
+                                    <div class="ui-block-a">
+                                        <input class="komutTextBox" type="text" />
+                                    </div>
+                               </div>
+                                <div class="ui-grid-a">
+                                    <div class="ui-block-a">
+                                        <button class="komutOlustur">
+                                            Komut Oluştur
+                                        </button>
+                                    </div>
+                                    <div class="ui-block-b">
+                                        <button class="pozisyonEkle">
+                                            Pozisyon Ekle
+                                        </button>
+                                    </div>
+                                    
+                                </div>
+                                <div class="ui-grid-solo">
+                                    <div class="ui-field-contain pozisyonlar">
+                                            <label for="pos_1">Pos 1</label>
+                                            <input class="sonEklenen" id="pos_1" type="text"/>
+                                    </div>
+                                </div>
+                                <div class="ui-grid-c">
+                                    <div class="ui-block-a"></div>
+                                    <div class="ui-block-b"></div>
+                                    <div class="ui-block-c">
+                                        <button>İndir</button>
+                                    </div>
+                                    <div class="ui-block-d">
+                                        <button class="hareketButton">Oynat</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div data-role="collapsible"> 
+                                <h4>Ayarlar</h4>
+                                <div class="ui-grid-a">
+                                    <div class="ui-block-a">
+                                        <form>
+                                            <fieldset data-role="controlgroup" data-type="horizontal" class="ui-field-contain">
+                                                <div class="ui-grid-a">
+                                                    <div class="ui-block-a">
+                                                        <label>Tema</label>
+                                                    </div>
+                                                </div>
+                                                <input class="radio_a" type="radio" name="radio-choice-h-2" id="radio-choice-h-2a" value="off">
+                                                <label for="radio-choice-h-2a">Light</label>
+                                                <input class="radio_b" type="radio" name="radio-choice-h-2" id="radio-choice-h-2b" value="off">
+                                                <label for="radio-choice-h-2b">Dark</label>
+                                                <input class="radio_c" type="radio" name="radio-choice-h-2" id="radio-choice-h-2c" value="other">
+                                                <label for="radio-choice-h-2c">Default</label>
+                                            </fieldset>
+                                        </form>
+                                    </div>
+                                    <div class="ui-block-b ui-field-contain">
+                                        <div>Sliderlar</div>
+                                        <fieldset class="ui-grid-b">
+                                            
+                                            <div class="ui-block-a"><input class="text_sliderMin" type="text" placeholder="Min" value="5000"/></div>
+                                          
+                                            <div class="ui-block-b"><input class="text_sliderMax" type="text" placeholder="Max" value="10000"/></div>
+                                            <div class="ui-block-c"><a id="button_sliderMinMaxAyar" data-role="button">Uygula</a>		</div>
+                                        </fieldset>
+                                        
+                                    </div>
+                                </div>
+                                
+                                
+
+                            </div>
+                        </div>
+					<div class="ui-block-b">
+			            <div class="ui-grid-d ui-responsive"  >
+                           
+
+
+                            <div class="ui-block-a" >
+                            </div>
+                            <div class= "ui-block-b"></div>
+                            <div class="ui-block-c">
+                                <div class="ui-grid-a">
+                                    <a class="buttonGorsel"  href="#" data-role="button">Head(Yaw) ID = 0</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                                <input class="ui-hidden-accessible slider" type="range"  id="slider_head_0" value="7500" min="5000" max="10000" step="1" data-mini="true"/>
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+										<input class="changeTextEvent" id="text_head_0" type="text" value="7500">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui-block-d"></div>
+                            <div class="ui-block-e" ></div>
+
+
+
+                            <div class="ui-block-a">
+				                <div class="ui-grid-a">
+                                    <a class="buttonGorsel"  href="#" data-role="button">Left Shoulder(Roll) - ID = 4</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                                <input class="ui-hidden-accessible slider" type="range"  id="slider_leftShoulderRoll_4" value="7500" min="5000" max="10000" step="1" data-mini="true"/>
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+										<input class="changeTextEvent" id="text_leftShoulderRoll_4" type="text" value="7500">
+
+                                    </div>
+                                </div>
+                            </div>
+                            <div class= "ui-block-b" >
+				                <div class="ui-grid-a">
+                                    <a class="buttonGorsel"  href="#" data-role="button">Left Shoulder(Pitch) - ID = 2</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                                <input class="ui-hidden-accessible slider" type="range"  id="slider_leftShoulderPitch_2" value="7500" min="5000" max="10000" step="1" data-mini="true"/>
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+                                        <input class="changeTextEvent" id="text_leftShoulderPitch_2" type="text" value="7500">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui-block-c" ></div>
+                            <div class="ui-block-d">
+				                <div class="ui-grid-a">
+                                    <a class="buttonGorsel"  href="#" data-role="button">Right Shoulder(Pitch) - ID = 3</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                                <input class="ui-hidden-accessible slider" type="range"  id="slider_rightShoulderPitch_3" value="7500" min="5000" max="10000" step="1" data-mini="true"/>
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+                                        <input class="changeTextEvent" id="text_rightShoulderPitch_3" type="text" value="7500">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui-block-e" >
+				                <div class="ui-grid-a">
+                                    <a class="buttonGorsel"  href="#" data-role="button">Right Shoulder(Roll) - ID 5</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                                <input class="ui-hidden-accessible slider" type="range"  id="slider_rightShoulderRoll_5" value="7500" min="5000" max="10000" step="1" data-mini="true"/>
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+                                        <input class="changeTextEvent" id="text_rightShoulderRoll_5" type="text" value="7500">
+                                    </div>
+                                </div>
+			                </div>
+
+
+                            <div class="ui-block-a" >
+				                <div class="ui-grid-a">
+                                    <a class="buttonGorsel"  href="#" data-role="button">Left Elbow - ID = 8</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                                <input class="ui-hidden-accessible slider" type="range"  id="slider_leftElbow_8" value="7500" min="5000" max="10000" step="1" data-mini="true"/>
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+                                        <input class="changeTextEvent" id="text_leftElbow_8" type="text" value="7500">
+                                    </div>
+                                </div>
+			                </div>
+                            <div class= "ui-block-b"></div>
+                            <div class="ui-block-c"></div>
+                            <div class="ui-block-d"></div>
+                            <div class="ui-block-e">
+                                <div class="ui-grid-a">
+                                    <a class="buttonGorsel" href="#" data-role="button">Right Elbow - ID = 9</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                            <input class="ui-hidden-accessible slider" type="range" id="slider_rightElbow_9" value="7500" min="5000" max="10000" step="1" data-mini="true" />
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+                                        <input class="changeTextEvent" id="text_rightElbow_9" type="text" value="7500">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="ui-block-a"></div>
+                            <div class="ui-block-b">
+                                <div class="ui-grid-a">
+                                    <a class="buttonGorsel" href="#" data-role="button">Left Hip(Roll) - ID = 12</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                            <input class="ui-hidden-accessible slider" type="range" id="slider_leftHipRoll_12" value="7500" min="5000" max="10000" step="1" data-mini="true" />
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+                                        <input class="changeTextEvent" id="text_leftHipRoll_12" type="text" value="7500">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui-block-c"></div>
+                            <div class="ui-block-d">
+                                <div class="ui-grid-a">
+                                    <a class="buttonGorsel" href="#" data-role="button">Right Hip(Roll) - ID = 13</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                            <input class="ui-hidden-accessible slider" type="range" id="slider_rightHipRoll_13" value="7500" min="5000" max="10000" step="1" data-mini="true" />
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+                                        <input class="changeTextEvent" id="text_rightHipRoll_13" type="text" value="7500">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui-block-e"></div>
+
+                            <div class="ui-block-a"></div>
+                            <div class="ui-block-b">
+                                <div class="ui-grid-a">
+                                    <a class="buttonGorsel" href="#" data-role="button">Left Hip(Pitch) - ID = 14</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                            <input class="ui-hidden-accessible slider" type="range" id="slider_leftHipPitch_14" value="7500" min="5000" max="10000" step="1" data-mini="true" />
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+                                        <input class="changeTextEvent" id="text_leftHipPitch_14" type="text" value="7500">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui-block-c"></div>
+                            <div class="ui-block-d">
+                                <div class="ui-grid-a">
+                                    <a class="buttonGorsel" href="#" data-role="button">Right Hip(Pitch) - ID = 15</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                            <input class="ui-hidden-accessible slider" type="range" id="slider_rightHipPitch_15" value="7500" min="5000" max="10000" step="1" data-mini="true" />
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+                                        <input class="changeTextEvent" id="text_rightHipPitch_15" type="text" value="7500">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui-block-e"></div>
+
+                            <div class="ui-block-a"></div>
+                            <div class="ui-block-b">
+                                <div class="ui-grid-a">
+                                    <a class="buttonGorsel" href="#" data-role="button">Left Knee - ID = 16</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                            <input class="ui-hidden-accessible slider" type="range" id="slider_leftKnee_16" value="7500" min="5000" max="10000" step="1" data-mini="true" />
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+                                        <input class="changeTextEvent" id="text_leftKnee_16" type="text" value="7500">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui-block-c"></div>
+                            <div class="ui-block-d">
+                                <div class="ui-grid-a">
+                                    <a class="buttonGorsel" href="#" data-role="button">Right Knee - ID = 17</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                            <input class="ui-hidden-accessible slider" type="range" id="slider_rightKnee_17" value="7500" min="5000" max="10000" step="1" data-mini="true" />
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+                                           <input class="changeTextEvent" id="text_rightKnee_17" type="text" value="7500">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui-block-e"></div>
+
+                            <div class="ui-block-a"></div>
+                            <div class="ui-block-b">
+                                <div class="ui-grid-a">
+                                    <a class="buttonGorsel" href="#" data-role="button">Left Ankle(Pitch) - ID = 18</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                            <input class="ui-hidden-accessible slider" type="range" id="slider_leftAnklePitch_18" value="7500" min="5000" max="10000" step="1" data-mini="true" />
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+                                        <input class="changeTextEvent" id="text_leftAnklePitch_18" type="text" value="7500">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui-block-c"></div>
+                            <div class="ui-block-d">
+                                <div class="ui-grid-a">
+                                    <a class="buttonGorsel" href="#" data-role="button">Right Ankle(Pitch) - ID = 19</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                            <input class="ui-hidden-accessible slider" type="range" id="slider_rightAnklePitch_19" value="7500" min="5000" max="10000" step="1" data-mini="true" />
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+										<input class="changeTextEvent" id="text_rightAnklePitch_19" type="text" value="7500">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui-block-e"></div>
+
+                            <div class="ui-block-a"></div>
+                            <div class="ui-block-b">
+                                <div class="ui-grid-a">
+                                    <a class="buttonGorsel" href="#" data-role="button">Left Ankle(Roll) - ID = 20</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                            <input class="ui-hidden-accessible slider" type="range" id="slider_leftAnkleRoll_20" value="7500" min="5000" max="10000" step="1" data-mini="true" />
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+										<input class="changeTextEvent" id="text_leftAnkleRoll_20" type="text" value="7500">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui-block-c"></div>
+                            <div class="ui-block-d">
+                                <div class="ui-grid-a">
+                                    <a class="buttonGorsel" href="#" data-role="button">Right Ankle(Roll) - ID = 21</a>
+                                    <div class="ui-block-a">
+                                        <div class="changeEvent">
+                                            <input class="ui-hidden-accessible slider" type="range" id="slider_rightAnkleRoll_21" value="7500" min="5000" max="10000" step="1" data-mini="true" />
+                                        </div>
+                                    </div>
+                                    <div class="ui-block-b">
+
+                                            <input class="changeTextEvent" id="text_rightAnkleRoll_21" type="text" value="7500">
+
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui-block-e"></div>
+
+       
+
+     
+                        </div>
+					</div>
+				</div>
+
+                <!--------------------------------------------GORSEL BITIS---------------------------------------------------->
+
+                <!--------------------------------------------DETAY---------------------------------------------------->
+
+                <!--------------------------------------------DETAY BITIS---------------------------------------------------->
+            </div>
+            <div data-role="footer"> <br></div><!-- /footer -->
+
+    </div><!-- /page -->
+
+</body>
+</html>
