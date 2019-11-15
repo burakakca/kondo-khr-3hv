@@ -1,7 +1,7 @@
 KONDO KHR-3HV 
 =========
 
-### Detaylı proje bilgisi Rapor.pdf içerisinde anlatışmıştır.
+### Detaylı bilgi Rapor.pdf içerisinde anlatışmıştır.
 
 
 
